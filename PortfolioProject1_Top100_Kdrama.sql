@@ -1,89 +1,123 @@
-select *
-from PortfolioProject1..top100_kdrama
-order by 1,2
+SELECT *
+FROM PortfolioProject1..top100_kdrama
+ORDER BY 1,2
 
 
 
--- Average Scores of the Top 100 Kdrama
-select AVG(Score) as AverageScore
-from PortfolioProject1..top100_kdrama
+-- AVERAGE SCORES OF THE TOP 100 KDRAMA
+	
+SELECT AVG(Score) AS AverageScore
+FROM PortfolioProject1..top100_kdrama
 
 
 
--- Top 10 Kdrama which scored more than the average
--- If average score is 8.7
-select Top 10 *
-from PortfolioProject1..top100_kdrama
-where Score > 8.7
-order by Score desc
+-- TOP 10 KDRAMA
+/* Kdramas which scored more than the average. The average score from the previous query is 8.7 */
+
+SELECT Top 10 *
+FROM PortfolioProject1..top100_kdrama
+WHERE Score > 8.7
+ORDER BY Score DESC
 
 
 
--- Above average Kdramas with Episodes lower than 10 
-select Title, Score, Episodes
-from PortfolioProject1..top100_kdrama
-where Score > 8.7 and Episodes <= 10
-order by Score desc, Episodes desc
+-- ABOVE AVERAGE KDRAMAS WITH EPISODES LOWER THAN 10
+	
+SELECT 
+	Title, 
+	Score, 
+	Episodes
+FROM PortfolioProject1..top100_kdrama
+WHERE Score > 8.7 
+	AND Episodes <= 10
+ORDER BY Score DESC, 
+	Episodes DESC
 
 
 
--- Top 10 Kdramas with high number of watchers
-select Top 10 *
-from PortfolioProject1..top100_kdrama
-where Watchers > 100000
-order by Watchers desc
+-- TOP 10 KDRAMAS BASED ON WATCHERS
+	
+SELECT Top 10 *
+FROM PortfolioProject1..top100_kdrama
+WHERE Watchers > 100000
+ORDER BY Watchers DESC
 
 
 
--- Percentage of watchers per kdrama
-select title, episodes, watchers,
-	round(watchers/ (select sum(watchers) from PortfolioProject1..top100_kdrama) * 100, 2) as watcher_percentage
-from PortfolioProject1..top100_kdrama
-order by watchers desc
+-- PERCENTAGE OF WATCHERS PER KDRAMA
+	
+SELECT 
+	title, 
+	episodes, 
+	watchers,
+	ROUND(watchers/ (SELECT SUM(watchers) FROM PortfolioProject1..top100_kdrama) * 100, 2) AS watcher_percentage
+FROM PortfolioProject1..top100_kdrama
+ORDER BY watchers DESC
 
 
 
--- Kdramas that have "Few", "Many" or "Normal" number of episodes
-select Title, Episodes, 
-	case
-		when episodes <= 13 then 'Few'
-		when episodes between 14 and 16 then 'Normal'
-		else 'Many'
-	end as CategoryOfEpisodes
-from PortfolioProject1..top100_kdrama
-order by CategoryOfEpisodes
+-- KDRAMAS THAT HAVE "FEW", "MANY", OR "NORMAL" NUMBER OF EPISODES
+/* Kdramas normally have 16 episodes. */
+	
+SELECT 
+	Title, 
+	Episodes, 
+		CASE
+			WHEN episodes <= 13 THEN 'Few'
+			WHEN episodes BETWEEN 14 AND 16 THEN 'Normal'
+			ELSE 'Many'
+		END AS CategoryOfEpisodes
+FROM PortfolioProject1..top100_kdrama
+ORDER BY CategoryOfEpisodes
 
 
 
--- Action Kdrama with 10 episodes or lower
-select kd.Title, kd.Episodes, kd.Watchers, kg.Genre
-from PortfolioProject1..top100_kdrama kd
-join PortfolioProject1..top100_kdrama_genre kg
-	on kd.ID = kg.ID
-where kd.Episodes <= 10 
-	and genre like '%action%'
+-- ACTION KDRAMA WITH 10 EPISODES OR LOWER
+	
+SELECT
+	kdrama.Title, 
+	kdrama.Episodes, 
+	kdrama.Watchers, 
+	kgenre.Genre
+FROM PortfolioProject1..top100_kdrama AS kdrama
+JOIN PortfolioProject1..top100_kdrama_genre AS kgenre
+	ON kdrama.ID = kgenre.ID
+WHERE kdrama.Episodes <= 10 
+	AND genre LIKE '%action%'
 
 
 
 
--- Using CTE
+-- USING CTE
 
--- Looking into the total percentage of watchers per genre
-With WatcherPercentage (title, episodes, watchers, watcher_percentage, genre)
-as 
+-- TOTAL PERCENTAGE OF WATCHERS BASED ON GENRE
+	
+WITH
+	WatcherPercentage (
+		title, 
+		episodes, 
+		watchers, 
+		watcher_percentage, 
+		genre)
+AS 
 (
-select kd.Title, kd.Episodes, kd.Watchers, 
-	round(kd.Watchers/ (select sum(kd.Watchers) 
-	from PortfolioProject1..top100_kdrama kd
-	join PortfolioProject1..top100_kdrama_genre kg
-		on kd.ID = kg.ID) * 100, 2) as watcher_percentage,
-	trim(split.value) as trim_genre
-from PortfolioProject1..top100_kdrama kd
-join PortfolioProject1..top100_kdrama_genre kg
-	on kd.ID = kg.ID
-cross apply string_split(kg.Genre, ',') as split
+SELECT 
+	kdrama.Title, 
+	kdrama.Episodes, 
+	kdrama.Watchers, 
+	ROUND(kdrama.Watchers/ (SELECT SUM(kdrama.Watchers) 
+	FROM PortfolioProject1..top100_kdrama kdrama
+	JOIN PortfolioProject1..top100_kdrama_genre kgenre
+		ON kdrama.ID = kgenre.ID) * 100, 2) AS watcher_percentage,
+		TRIM(split.VALUE) AS trim_genre
+FROM PortfolioProject1..top100_kdrama kdrama
+JOIN PortfolioProject1..top100_kdrama_genre kgenre
+	ON kdrama.ID = kgenre.ID
+CROSS APPLY STRING_SPLIT(kgenre.Genre, ',') AS split
 )
-select genre, sum(watcher_percentage) TotalWatcherPercentage
-from WatcherPercentage
-group by genre
+SELECT 
+	genre, 
+	SUM(watcher_percentage) AS TotalWatcherPercentage
+FROM WatcherPercentage
+GROUP BY genre
 order by 2 desc
